@@ -18,6 +18,8 @@ const searchTeam = document.querySelector('#searchTeam')
 const startSearch = document.querySelector('#startSearch')
 const resultSection = document.querySelector('#risultati-section')
 const preferitiSection = document.querySelector('#preferitiSection')
+const pref = document.querySelector('#pref')
+const res = document.querySelector('#res')
 // === API ===
 const baseUrlApi = 'https://www.thesportsdb.com/api/v1/json/123/'
 const endpointSearchTeams = 'searchteams.php?t='
@@ -31,7 +33,7 @@ async function loadTeams(name) {
         selectedObj = data.teams[0]
        console.log(selectedObj)
        const {strBadge,strTeam, strLeague, strCountry} = selectedObj
-       TeamCard(resultSection, strBadge, strTeam, strLeague,strCountry)
+       loadResult(resultSection, strBadge, strTeam, strLeague,strCountry)
        return selectedObj
     }catch(err){
         console.error(err)
@@ -57,6 +59,7 @@ function TeamCard(section,strBadge,strTeam,strLeague,strCountry){
     addToList.textContent = 'add to favorites'
     addToList.classList.add('btn' ,'btn-dark','w-100')
     addToList.addEventListener('click',()=>{
+        pref.textContent = 'Preferiti'
         const alredyExist = favoritesList.some(team=> team.idTeam == selectedObj.idTeam) 
         if(alredyExist){
             alert('è già nei preferiti')
@@ -65,6 +68,7 @@ function TeamCard(section,strBadge,strTeam,strLeague,strCountry){
         favoritesList.push(selectedObj)
         localStorage.setItem('prferiti',JSON.stringify(favoritesList))
         addToList.textContent = 'Aggiunto ai preferiti'
+        render()
     })
     nation.textContent = strCountry
     lega.textContent = strLeague
@@ -81,8 +85,14 @@ function TeamCard(section,strBadge,strTeam,strLeague,strCountry){
 }
 
 
+function loadResult(section,strBadge,strTeam,strLeague,strCountry){
+    TeamCard(resultSection, strBadge,strTeam,strLeague,strCountry)
+}
+
+
 function loadPreferiti(){
     if(favoritesList <=0){
+        pref.textContent = 'Non ci sono preferiti'
         return
     }
     favoritesList.forEach(list=>{
@@ -91,12 +101,21 @@ function loadPreferiti(){
     })
 }
 
-loadPreferiti()
 // === Stato ===
 
 
 
+
 // === Render ===
+function render(){
+    if(selectedObj){
+        const {section,strBadge,strTeam,strLeague,strCountry} = selectedObj
+        loadResult(section,strBadge,strTeam,strLeague,strCountry)
+    }
+    loadPreferiti()
+
+}
+render()
 
 
 
