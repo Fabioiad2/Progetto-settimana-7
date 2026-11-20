@@ -18,10 +18,10 @@
       <div class="container">
         <h1 class="fw-bold">SportsHub</h1>
         <p>Cerca una squadra, scopri prossime partite e utili risultati.</p>
-        <div class="d-flex gap-2 mx-auto search-bar">
+        <form id="searchForm" class="d-flex gap-2 mx-auto search-bar">
           <input placeholder="inserisci il nome della squadra" class="form-control" type="text" id="searchTeam">
-          <button id="startSearch" class="btn btn-light fw-bold px-4">Cerca</button>
-        </div>
+          <button id="startSearch" type="submit" class="btn btn-light fw-bold px-4">Cerca</button>
+        </form>
       </div>
       <!-- Titolo dell'app + form di ricerca -->
     </header>
@@ -41,7 +41,7 @@
       </section>
 
       <section id="dettagli-section" hidden>
-        <h2>Squadre trovate</h2>
+        <h2>Dettagli squadra</h2>
         <!-- Visibile dopo click su una squadra: prossimi eventi + ultimi risultati -->
          <div class="rowSquadre"></div>
       </section>

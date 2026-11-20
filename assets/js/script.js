@@ -1,160 +1,242 @@
 // SportsHub — Week Project Settimana VII
-//
-// Devi fare 4 cose per la Versione Base:
-// 1. Definire le classi Squadra ed Evento (mappano i dati di TheSportsDB)
-// 2. Funzione async cercaSquadre(query) che chiama /searchteams.php
-// 3. Funzione async caricaDettagli(idTeam) che chiama in parallelo
-//    eventsnext.php + eventslast.php usando Promise.all
-// 4. Render dinamico: card squadre, lista prossimi eventi, lista risultati
-//
-// Endpoint base: https://www.thesportsdb.com/api/v1/json/3/
-// Il `3` nell'URL è la chiave API pubblica di test di TheSportsDB: gratis, non serve registrarsi.
-//
-// Per le versioni Intermedia/Avanzata: localStorage preferiti, debounce, Promise.all multi.
 
+import { Squadra, Evento } from '../../classi/classi.js'
 
-// === Classi ===
+// === Elementi DOM ===
+const searchForm = document.querySelector('#searchForm')
 const searchTeam = document.querySelector('#searchTeam')
-const startSearch = document.querySelector('#startSearch')
 const resultSection = document.querySelector('#risultati-section')
 const preferitiSection = document.querySelector('#preferitiSection')
 const pref = document.querySelector('#pref')
-const res = document.querySelector('#res')
-// === API ===
-const baseUrlApi = 'https://www.thesportsdb.com/api/v1/json/123/'
-const endpointSearchTeams = 'searchteams.php?t='
-const endpointNext = 'eventsnext.php?id='
-const endpointLast = 'eventslast.php?id='
 const rowSquadre = document.querySelector('.rowSquadre')
 const dettagliSection = document.querySelector('#dettagli-section')
-let selectedObj;
 
-async function loadDetail(id) {
+// === API ===
+const baseUrlApi = 'https://www.thesportsdb.com/api/v1/json/123/'
+
+// === Stato ===
+let searchResults = []
+let favoritesList = (JSON.parse(localStorage.getItem('prferiti')) || []).map(item => new Squadra(item))
+let debounceTimer = null
+let searchController = null
+
+function createSpinner() {
+    const wrapper = document.createElement('div')
+    wrapper.classList.add('d-flex', 'justify-content-center', 'py-4')
+    const spinner = document.createElement('div')
+    spinner.classList.add('spinner-border', 'text-primary')
+    spinner.setAttribute('role', 'status')
+    wrapper.appendChild(spinner)
+    return wrapper
+}
+
+function showMessage(container, text, type = 'muted') {
+    container.textContent = ''
+    if (type === 'danger' || type === 'warning') {
+        const alertBox = document.createElement('div')
+        alertBox.classList.add('alert', `alert-${type}`, 'col-12', 'mb-0')
+        alertBox.textContent = text
+        container.appendChild(alertBox)
+    } else {
+        const p = document.createElement('p')
+        p.classList.add('text-muted', 'fst-italic', 'mb-0')
+        p.textContent = text
+        container.appendChild(p)
+    }
+}
+
+async function loadDetail(squadra) {
+    dettagliSection.hidden = false
+    rowSquadre.textContent = ''
+    rowSquadre.appendChild(createSpinner())
+
     try {
         const [response, response2] = await Promise.all([
-            fetch(`${baseUrlApi}${endpointNext}${id}`),
-            fetch(`${baseUrlApi}${endpointLast}${id}`)
+            fetch(`${baseUrlApi}eventsnext.php?id=${squadra.id}`),
+            fetch(`${baseUrlApi}eventslast.php?id=${squadra.id}`)
         ])
 
         if (!response.ok || !response2.ok) {
-            throw new Error('Errore nel caricamento')
+            throw new Error('Errore nel caricamento dei dettagli')
         }
 
         const data = await response.json()
         const data2 = await response2.json()
 
-        const nextEvent = data.events?.[0]
-        const lastEvent = data2.results?.[0]
+        const nextEvents = (data.events || []).map(ev => new Evento(ev))
+        const lastEvents = (data2.results || []).map(ev => new Evento(ev))
 
-   
-        dettagliSection.hidden = false
         rowSquadre.textContent = ''
 
-        
         const cardMadre = document.createElement('div')
         cardMadre.classList.add('card', 'shadow-sm', 'rounded-3', 'p-4')
 
-        
+        const teamTitle = document.createElement('h3')
+        teamTitle.classList.add('fw-bold', 'fs-4', 'mb-4')
+        teamTitle.style.color = 'hsl(220, 60%, 25%)'
+        teamTitle.textContent = squadra.nome
+
         const row = document.createElement('div')
         row.classList.add('row', 'g-4')
 
-        cardMadre.appendChild(row)
+        cardMadre.append(teamTitle, row)
         rowSquadre.appendChild(cardMadre)
 
-       
-        if (nextEvent) {
-            cardEvents(nextEvent, row, 'Prossimo evento')
-        }
-
-        if (lastEvent) {
-            cardEvents(lastEvent, row, 'Ultimo risultato')
-        }
-
+        renderEventColumn(nextEvents, row, 'Prossimi eventi')
+        renderEventColumn(lastEvents, row, 'Ultimi risultati')
     } catch (err) {
         console.error(err)
+        rowSquadre.textContent = ''
     }
 }
 
 async function loadTeams(name) {
     const query = name.trim()
-    if (!query) return
+    if (!query) {
+        searchResults = []
+        renderResults()
+        return
+    }
+
+    if (searchController) {
+        searchController.abort()
+    }
+    searchController = new AbortController()
+
+    resultSection.textContent = ''
+    resultSection.appendChild(createSpinner())
+
     try {
-        const response = await fetch(`${baseUrlApi}${endpointSearchTeams}${encodeURIComponent(query)}`)
-        let data = await response.json()
-        if (data.teams == undefined || data.teams.length === 0) {
-            alert('Team non trovato')
-            console.error('undefined')
+        const response = await fetch(
+            `${baseUrlApi}searchteams.php?t=${encodeURIComponent(query)}`,
+            { signal: searchController.signal }
+        )
+        if (!response.ok) {
+            throw new Error('Errore nella ricerca delle squadre')
+        }
+
+        const data = await response.json()
+        if (!data.teams || data.teams.length === 0) {
+            searchResults = []
+            showMessage(resultSection, 'Nessuna squadra trovata.', 'warning')
             return
         }
-        selectedObj = data.teams[0]
-        console.log(selectedObj)
-        const { idTeam, strBadge, strTeam, strLeague, strCountry } = selectedObj
-        loadResult(idTeam, resultSection, strBadge, strTeam, strLeague, strCountry)
-        return selectedObj
+
+        searchResults = data.teams.map(t => new Squadra(t))
+        renderResults()
     } catch (err) {
+        if (err.name === 'AbortError') return
         console.error(err)
+        resultSection.textContent = ''
     }
 }
 
-
-startSearch.addEventListener('click', () => {
-    loadTeams(searchTeam.value)
-})
-
-let favoritesList = JSON.parse(localStorage.getItem('prferiti')) || []
-console.log(favoritesList)
-
-function TeamCard(idTeam, section, strBadge, strTeam, strLeague, strCountry) {
-    console.log(idTeam, "id arrivo")
-    const card = document.createElement('div')
-    card.addEventListener('click', () => {
-        loadDetail(idTeam)
-    })
-    const content = document.createElement('div')
-    const teamName = document.createElement('h4')
-    const lega = document.createElement('p')
-    const nation = document.createElement('p')
-    const addToList = document.createElement('button')
-    addToList.textContent = 'add to favorites'
-    addToList.classList.add('btn', 'btn-dark', 'w-100')
-    addToList.addEventListener('click', (e) => {
-        e.stopPropagation()
-        pref.textContent = 'Preferiti'
-        const alredyExist = favoritesList.some(team => team.idTeam == idTeam)
-        if (alredyExist) {
-            alert('è già nei preferiti')
-            return
-        }
-        favoritesList.push({ idTeam, strBadge, strTeam, strLeague, strCountry })
-        localStorage.setItem('prferiti', JSON.stringify(favoritesList))
-        addToList.textContent = 'Aggiunto ai preferiti'
-        render()
-    })
-    nation.textContent = strCountry
-    nation.classList.add('text-muted', 'small', 'mb-3')
-    lega.textContent = strLeague
-    lega.classList.add('text-muted', 'small', 'mb-1')
-    content.classList.add('p-2')
-    teamName.classList.add('fw-bold', 'fs-5', 'mb-1')
-    teamName.textContent = strTeam
+function TeamCard(squadra, section) {
     const col = document.createElement('div')
     col.classList.add('col-12', 'col-md-6', 'col-lg-4')
+
+    const card = document.createElement('div')
     card.classList.add('card', 'team-card', 'shadow-sm', 'rounded-3', 'p-3', 'h-100', 'text-center')
+    card.addEventListener('click', () => {
+        loadDetail(squadra)
+    })
+
     const badge = document.createElement('img')
     badge.classList.add('team-badge')
-    badge.src = strBadge
+    badge.src = squadra.logo
+    badge.alt = squadra.nome
+
+    const content = document.createElement('div')
+    content.classList.add('p-2')
+
+    const teamName = document.createElement('h4')
+    teamName.classList.add('fw-bold', 'fs-5', 'mb-1')
+    teamName.textContent = squadra.nome
+
+    const lega = document.createElement('p')
+    lega.classList.add('text-muted', 'small', 'mb-1')
+    lega.textContent = squadra.lega
+
+    const nation = document.createElement('p')
+    nation.classList.add('text-muted', 'small', 'mb-3')
+    nation.textContent = squadra.paese
+
+    const addToList = document.createElement('button')
+    const isFavorite = favoritesList.some(team => team.id == squadra.id)
+    addToList.textContent = isFavorite ? 'Rimuovi' : '★ Aggiungi ai preferiti'
+    addToList.classList.add('btn', isFavorite ? 'btn-outline-danger' : 'btn-dark', 'w-100')
+    addToList.addEventListener('click', (e) => {
+        e.stopPropagation()
+        if (isFavorite) {
+            favoritesList = favoritesList.filter(team => team.id != squadra.id)
+        } else {
+            favoritesList.push(squadra)
+        }
+        localStorage.setItem('prferiti', JSON.stringify(favoritesList))
+        render()
+    })
+
+    content.append(teamName, lega, nation, addToList)
+    card.append(badge, content)
     col.appendChild(card)
     section.appendChild(col)
-    card.append(badge, content)
-    content.append(teamName, lega, nation, addToList)
 }
 
+function renderEventColumn(events, row, titolo) {
+    const col = document.createElement('div')
+    col.classList.add('col-12', 'col-md-6')
 
-function loadResult(idTeam, section, strBadge, strTeam, strLeague, strCountry) {
+    const title = document.createElement('h4')
+    title.textContent = titolo
+    col.appendChild(title)
+
+    if (events.length === 0) {
+        const empty = document.createElement('p')
+        empty.classList.add('text-muted', 'fst-italic', 'small')
+        empty.textContent = 'Nessun evento in programma'
+        col.appendChild(empty)
+    } else {
+        events.forEach(evento => {
+            const item = document.createElement('div')
+            item.classList.add('border-bottom', 'py-2')
+
+            const date = document.createElement('p')
+            date.classList.add('text-muted', 'small', 'mb-1')
+            date.textContent = evento.formattaData()
+
+            const matchRow = document.createElement('div')
+            matchRow.classList.add('d-flex', 'justify-content-between', 'align-items-center', 'gap-2')
+
+            const teams = document.createElement('span')
+            teams.classList.add('fw-bold', 'small')
+            teams.textContent = `${evento.casa} vs ${evento.trasferta}`
+            matchRow.appendChild(teams)
+
+            const punteggio = evento.getPunteggio()
+            if (punteggio) {
+                const badge = document.createElement('span')
+                badge.classList.add('badge', 'bg-success')
+                badge.textContent = punteggio
+                matchRow.appendChild(badge)
+            }
+
+            item.append(date, matchRow)
+            col.appendChild(item)
+        })
+    }
+
+    row.appendChild(col)
+}
+
+// === Render ===
+function renderResults() {
     resultSection.textContent = ''
-    TeamCard(idTeam, resultSection, strBadge, strTeam, strLeague, strCountry)
+    if (searchResults.length === 0) {
+        showMessage(resultSection, 'Cerca una squadra per vedere i risultati.')
+        return
+    }
+    searchResults.forEach(squadra => TeamCard(squadra, resultSection))
 }
-
 
 function loadPreferiti() {
     preferitiSection.textContent = ''
@@ -164,81 +246,34 @@ function loadPreferiti() {
         return
     }
 
-    pref.textContent = 'Preferiti'
-
-    favoritesList.forEach(list => {
-        TeamCard(
-            list.idTeam,
-            preferitiSection,
-            list.strBadge,
-            list.strTeam,
-            list.strLeague,
-            list.strCountry
-        )
-    })
+    pref.textContent = '⭐ Le tue squadre preferite'
+    favoritesList.forEach(squadra => TeamCard(squadra, preferitiSection))
 }
 
-function cardEvents(evento, section, titolo) {
-    const {
-        idEvent,
-        dateEvent,
-        strHomeTeam,
-        strAwayTeam,
-        intHomeScore,
-        intAwayScore
-    } = evento
-
-    const col = document.createElement('div')
-    col.classList.add('col-12', 'col-md-6')
-
-    const card = document.createElement('div')
-    card.classList.add('card', 'border-0', 'h-100', 'text-start')
-
-    const title = document.createElement('h4')
-    title.textContent = titolo
-
-    const teams = document.createElement('h5')
-    teams.classList.add('fw-bold', 'fs-6', 'mb-2')
-    teams.textContent = `${strHomeTeam} vs ${strAwayTeam}`
-
-    const date = document.createElement('p')
-    date.classList.add('text-muted', 'small', 'mb-1')
-    date.textContent = dateEvent
-
-    const score = document.createElement('p')
-    score.classList.add('mb-0')
-
-    if (intHomeScore != null && intAwayScore != null) {
-        const badge = document.createElement('span')
-        badge.classList.add('badge', 'bg-success')
-        badge.textContent = `${intHomeScore} – ${intAwayScore}`
-        score.appendChild(badge)
-    } else {
-        score.classList.add('text-muted', 'fst-italic', 'small')
-        score.textContent = 'Partita da giocare'
-    }
-
-    card.append(title, date, teams, score)
-
-    col.appendChild(card)
-    section.appendChild(col)
-}
-// === Stato ===
-
-
-
-
-// === Render ===
 function render() {
-    if (selectedObj) {
-        const { idTeam, strBadge, strTeam, strLeague, strCountry } = selectedObj
-        loadResult(idTeam, resultSection, strBadge, strTeam, strLeague, strCountry)
-    }
+    renderResults()
     loadPreferiti()
-
 }
-render()
-
-
 
 // === Eventi ===
+searchForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    clearTimeout(debounceTimer)
+    loadTeams(searchTeam.value)
+})
+
+searchTeam.addEventListener('input', () => {
+    clearTimeout(debounceTimer)
+    const query = searchTeam.value.trim()
+    if (query.length < 3) {
+        if (searchController) searchController.abort()
+        searchResults = []
+        renderResults()
+        return
+    }
+    debounceTimer = setTimeout(() => {
+        loadTeams(query)
+    }, 400)
+})
+
+render()
