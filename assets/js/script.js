@@ -46,22 +46,22 @@ async function loadDetail(id) {
         const nextEvent = data.events?.[0]
         const lastEvent = data2.results?.[0]
 
-        // Pulisco il contenitore e mostro la sezione
+   
         dettagliSection.hidden = false
         rowSquadre.textContent = ''
 
-        // Creo la card madre
+        
         const cardMadre = document.createElement('div')
-        cardMadre.classList.add('card', 'border-0', 'p-3')
+        cardMadre.classList.add('card', 'shadow-sm', 'rounded-3', 'p-4')
 
-        // Creo una row per le due card
+        
         const row = document.createElement('div')
-        row.classList.add('row', 'g-3')
+        row.classList.add('row', 'g-4')
 
         cardMadre.appendChild(row)
         rowSquadre.appendChild(cardMadre)
 
-        // Creo le due card figlie
+       
         if (nextEvent) {
             cardEvents(nextEvent, row, 'Prossimo evento')
         }
@@ -131,15 +131,20 @@ function TeamCard(idTeam, section, strBadge, strTeam, strLeague, strCountry) {
         render()
     })
     nation.textContent = strCountry
+    nation.classList.add('text-muted', 'small', 'mb-3')
     lega.textContent = strLeague
-    content.classList.add('p-3')
-    teamName.classList.add('fw-bold')
+    lega.classList.add('text-muted', 'small', 'mb-1')
+    content.classList.add('p-2')
+    teamName.classList.add('fw-bold', 'fs-5', 'mb-1')
     teamName.textContent = strTeam
-    card.classList.add('card', 'p-3', 'col-md-6', 'col-lg-4', 'col-12', 'text-center')
+    const col = document.createElement('div')
+    col.classList.add('col-12', 'col-md-6', 'col-lg-4')
+    card.classList.add('card', 'team-card', 'shadow-sm', 'rounded-3', 'p-3', 'h-100', 'text-center')
     const badge = document.createElement('img')
-    badge.classList.add('img-fluid')
+    badge.classList.add('team-badge')
     badge.src = strBadge
-    section.appendChild(card)
+    col.appendChild(card)
+    section.appendChild(col)
     card.append(badge, content)
     content.append(teamName, lega, nation, addToList)
 }
@@ -187,26 +192,33 @@ function cardEvents(evento, section, titolo) {
     col.classList.add('col-12', 'col-md-6')
 
     const card = document.createElement('div')
-    card.classList.add('card', 'p-3', 'h-100', 'text-center')
+    card.classList.add('card', 'border-0', 'h-100', 'text-start')
 
     const title = document.createElement('h4')
     title.textContent = titolo
 
     const teams = document.createElement('h5')
-    teams.textContent = `${strHomeTeam} VS ${strAwayTeam}`
+    teams.classList.add('fw-bold', 'fs-6', 'mb-2')
+    teams.textContent = `${strHomeTeam} vs ${strAwayTeam}`
 
     const date = document.createElement('p')
+    date.classList.add('text-muted', 'small', 'mb-1')
     date.textContent = dateEvent
 
     const score = document.createElement('p')
+    score.classList.add('mb-0')
 
     if (intHomeScore != null && intAwayScore != null) {
-        score.textContent = `${intHomeScore} - ${intAwayScore}`
+        const badge = document.createElement('span')
+        badge.classList.add('badge', 'bg-success')
+        badge.textContent = `${intHomeScore} – ${intAwayScore}`
+        score.appendChild(badge)
     } else {
+        score.classList.add('text-muted', 'fst-italic', 'small')
         score.textContent = 'Partita da giocare'
     }
 
-    card.append(title, teams, date, score)
+    card.append(title, date, teams, score)
 
     col.appendChild(card)
     section.appendChild(col)

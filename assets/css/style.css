@@ -28,3 +28,41 @@ body {
 
 
 /* Aggiungi qui le tue regole per: form, risultati, card squadra, eventi. */
+
+.search-bar {
+  max-width: 560px;
+}
+
+.site-header .btn {
+  color: hsl(220, 60%, 25%);
+}
+
+main h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1.5rem 0 1rem;
+}
+
+.team-card {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.team-card:hover {
+  transform: translateY(-2px);
+}
+
+.team-badge {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  margin: 0 auto 8px;
+}
+
+.rowSquadre h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  border-bottom: 2px solid hsl(220, 60%, 25%);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
