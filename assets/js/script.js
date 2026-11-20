@@ -30,6 +30,11 @@ async function loadTeams(name) {
     try{
         const response  = await fetch(`${baseUrlApi}${endpointSearchTeams}${name}`)
         let data = await response.json()
+        if(data.teams == undefined  || data.teams.length === 0 ){
+            alert('Team non trovato')
+            console.error('undefined')
+            return
+        }
         selectedObj = data.teams[0]
        console.log(selectedObj)
        const {strBadge,strTeam, strLeague, strCountry} = selectedObj
