@@ -26,6 +26,10 @@ const endpointSearchTeams = 'searchteams.php?t='
 
 let selectedObj;
 
+function loadDetail(id){
+    console.log(id)
+}
+
 async function loadTeams(name) {
     try{
         const response  = await fetch(`${baseUrlApi}${endpointSearchTeams}${name}`)
@@ -56,6 +60,9 @@ console.log(favoritesList)
 function TeamCard(section,strBadge,strTeam,strLeague,strCountry){
     resultSection.textContent = ''
     const card = document.createElement('div')
+    card.addEventListener('click',()=>{
+        loadDetail(selectedObj.idTeam)
+    })
     const content = document.createElement('div')
     const teamName = document.createElement('h4')
     const lega = document.createElement('p')
