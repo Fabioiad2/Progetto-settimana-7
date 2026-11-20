@@ -14,13 +14,84 @@
 
 
 // === Classi ===
-
-
-
+const searchTeam = document.querySelector('#searchTeam')
+const startSearch = document.querySelector('#startSearch')
+const resultSection = document.querySelector('#risultati-section')
+const preferitiSection = document.querySelector('#preferitiSection')
 // === API ===
+const baseUrlApi = 'https://www.thesportsdb.com/api/v1/json/123/'
+const endpointSearchTeams = 'searchteams.php?t='
+
+let selectedObj;
+
+async function loadTeams(name) {
+    try{
+        const response  = await fetch(`${baseUrlApi}${endpointSearchTeams}${name}`)
+        let data = await response.json()
+        selectedObj = data.teams[0]
+       console.log(selectedObj)
+       const {strBadge,strTeam, strLeague, strCountry} = selectedObj
+       TeamCard(resultSection, strBadge, strTeam, strLeague,strCountry)
+       return selectedObj
+    }catch(err){
+        console.error(err)
+    }
+}
 
 
+startSearch.addEventListener('click',()=>{
+   loadTeams(searchTeam.value)
+})
 
+let favoritesList = JSON.parse( localStorage.getItem('prferiti')) || []
+console.log(favoritesList)
+
+function TeamCard(section,strBadge,strTeam,strLeague,strCountry){
+    resultSection.textContent = ''
+    const card = document.createElement('div')
+    const content = document.createElement('div')
+    const teamName = document.createElement('h4')
+    const lega = document.createElement('p')
+    const nation = document.createElement('p')
+    const addToList = document.createElement('button')
+    addToList.textContent = 'add to favorites'
+    addToList.classList.add('btn' ,'btn-dark','w-100')
+    addToList.addEventListener('click',()=>{
+        const alredyExist = favoritesList.some(team=> team.idTeam == selectedObj.idTeam) 
+        if(alredyExist){
+            alert('è già nei preferiti')
+            return
+        }
+        favoritesList.push(selectedObj)
+        localStorage.setItem('prferiti',JSON.stringify(favoritesList))
+        addToList.textContent = 'Aggiunto ai preferiti'
+    })
+    nation.textContent = strCountry
+    lega.textContent = strLeague
+    content.classList.add('p-3')
+    teamName.classList.add('fw-bold')
+    teamName.textContent = strTeam
+    card.classList.add('card','p-3','col-md-6','col-lg-4','col-12','text-center')
+    const badge = document.createElement('img')
+    badge.classList.add('img-fluid')
+    badge.src = strBadge
+    section.appendChild(card)
+    card.append(badge, content)
+    content.append(teamName,lega,nation,addToList)
+}
+
+
+function loadPreferiti(){
+    if(favoritesList <=0){
+        return
+    }
+    favoritesList.forEach(list=>{
+        TeamCard(preferitiSection, list.strBadge,favoritesList.strTeam,list.strLeague,list.strCountry)
+        console.log(favoritesList,"qui")
+    })
+}
+
+loadPreferiti()
 // === Stato ===
 
 
